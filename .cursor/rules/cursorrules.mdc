@@ -1,0 +1,98 @@
+---
+alwaysApply: true
+---
+
+# Cursor Rules for Telemetry DevOps Project
+
+## Project Overview
+This project simulates a satellite internet telemetry system with the following components:
+- **Generator**: produces synthetic satellite telemetry data (latency, bandwidth, battery, packet loss, etc.).
+- **Collector**: exposes API endpoints for external ingestion of telemetry events and pushes them to RabbitMQ.
+- **Processor**: consumes telemetry from RabbitMQ, stores it into PostgreSQL, and exposes Prometheus metrics.
+- **Monitoring stack**: Prometheus + Grafana + Alertmanager with pre-provisioned dashboards and Telegram alerts.
+- **CI/CD**: GitHub Actions pipelines for build, test, push, and deploy with Helm into Kubernetes.
+- **Infrastructure**: Terraform + Ansible for Yandex.Cloud (Kubernetes cluster + srv node for observability).
+
+The system is designed for DevOps diploma purposes, showcasing IaC, CI/CD, observability, and GitOps best practices.
+
+---
+
+## Coding Standards
+1. **Language**: Python 3.11+ for microservices.  
+2. **Style**: PEP8 + type hints.  
+3. **Services**: All services must have `Dockerfile` and `requirements.txt`.  
+4. **Metrics**: Each service must expose Prometheus metrics under `/metrics`.  
+5. **Logs**: Use structured JSON logging (logging module, no prints).  
+6. **Configuration**: All configs via environment variables. Never hardcode secrets.  
+
+---
+
+## Repository Structure
+Cursor may **reorganize the project structure** for best practices:
+- Remove duplicates, empty, or unused directories.
+- Move files if necessary for cleaner hierarchy.
+- Update paths in configs so everything keeps working.
+- Maintain separation of concerns:
+  - `services/` — microservices code (generator, collector, processor).
+  - `monitoring/` — Prometheus, Grafana, Alertmanager, dashboards.
+  - `infrastructure/terraform/` — Yandex Cloud IaC.
+  - `ansible/` — provisioning for `srv` node.
+  - `k8s/helm/` — Helm chart for telemetry app.
+  - `.github/workflows/` — CI/CD pipelines.
+  - `README.md` — must always reflect the current structure.
+
+---
+
+## Rules for Cursor AI
+1. **Secrets**: never commit secrets. Use placeholders, `.env.example`, or Kubernetes Secrets.  
+2. **Kubernetes**: prefer Helm charts for app deployment.  
+3. **GitOps**: structure must allow GitOps tools (FluxCD/ArgoCD) if needed.  
+4. **Terraform**: manage Yandex Cloud infra only in `infrastructure/terraform/`.  
+5. **Ansible**: provision `srv` node with monitoring/CI/CD stack.  
+6. **Dockerfiles**:  
+   - Multi-stage builds.  
+   - Non-root user.  
+   - Pin Python and dependency versions.  
+7. **CI/CD Pipelines**:  
+   - Use GitHub Actions (primary).  
+   - Jobs: lint, build, test, push images, deploy Helm.  
+8. **Observability**:  
+   - All services must expose metrics.  
+   - Grafana dashboards as JSON under `monitoring/grafana/provisioning/dashboards/`.  
+   - Dashboards and datasources auto-provisioned.  
+   - Alertmanager integrated with Telegram.  
+
+---
+
+## Naming Conventions
+- Kubernetes namespace: `telemetry`  
+- Docker images: `telemetry-<service>`  
+- RabbitMQ queue: `telemetry.raw`  
+- Metrics prefix: `telemetry_`  
+- Terraform resources: `telemetry_<resource>`  
+
+---
+
+## Example Tasks for Cursor
+1. Add new metric to telemetry-processor: update Prometheus exposition and Grafana dashboard.  
+2. Change RabbitMQ queue name: update generator, collector, processor, docker-compose, and Helm chart.  
+3. Add alerting rule: update `monitoring/prometheus/alerts/*.yml` and Alertmanager config.  
+4. Update Terraform module: keep all Yandex Cloud infra code in `infrastructure/terraform/`.  
+
+---
+
+## Forbidden Actions
+- Do not commit `.env` files or raw secrets.  
+- Do not break service APIs unless explicitly asked.  
+- Do not remove monitoring/alerting stack.  
+
+---
+
+## Goal
+The repository should:  
+- Run locally with `docker compose -f docker-compose.dev.yml up`.  
+- Deploy to Kubernetes via Helm + GitHub Actions.  
+- Provision Yandex.Cloud infra with Terraform + Ansible.  
+- Provide monitoring and dashboards out-of-the-box.  
+- Send alerts to Telegram via Alertmanager.  
+- Be clean, reproducible, extensible, and well-documented.  

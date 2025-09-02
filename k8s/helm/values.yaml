@@ -1,0 +1,22 @@
+image:
+  repositoryPrefix: "ghcr.io/OWNER/telemetry-"
+  tag: "latest"
+
+generator:
+  rateHz: 2
+  satCount: 5
+  nodePort: 30082
+
+collector:
+  nodePort: 30081
+
+processor:
+  nodePort: 30080
+
+rabbitmq:
+  url: "amqp://telemetry:telemetry@rabbitmq:5672/"
+  queue: "telemetry.raw"
+
+postgres:
+  dsn: "postgresql://telemetry:example@postgres:5432/telemetry"
+

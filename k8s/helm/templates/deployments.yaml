@@ -1,0 +1,153 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collector
+  labels:
+    app: collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: collector
+  template:
+    metadata:
+      labels:
+        app: collector
+    spec:
+      containers:
+        - name: collector
+          image: "{{ .Values.image.repositoryPrefix }}collector:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: RABBITMQ_URL
+              value: "{{ .Values.rabbitmq.url }}"
+            - name: QUEUE_NAME
+              value: "{{ .Values.rabbitmq.queue }}"
+          readinessProbe:
+            httpGet: { path: /metrics, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /metrics, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collector
+spec:
+  type: NodePort
+  selector:
+    app: collector
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: {{ .Values.collector.nodePort }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processor
+  labels:
+    app: processor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: processor
+  template:
+    metadata:
+      labels:
+        app: processor
+    spec:
+      containers:
+        - name: processor
+          image: "{{ .Values.image.repositoryPrefix }}processor:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8000
+          env:
+            - name: RABBITMQ_URL
+              value: "{{ .Values.rabbitmq.url }}"
+            - name: QUEUE_NAME
+              value: "{{ .Values.rabbitmq.queue }}"
+            - name: PG_DSN
+              value: "{{ .Values.postgres.dsn }}"
+          readinessProbe:
+            httpGet: { path: /metrics, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /metrics, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: processor
+spec:
+  type: NodePort
+  selector:
+    app: processor
+  ports:
+    - name: metrics
+      port: 8000
+      targetPort: 8000
+      nodePort: {{ .Values.processor.nodePort }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: generator
+  labels:
+    app: generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: generator
+  template:
+    metadata:
+      labels:
+        app: generator
+    spec:
+      containers:
+        - name: generator
+          image: "{{ .Values.image.repositoryPrefix }}generator:{{ .Values.image.tag }}"
+          env:
+            - name: RABBITMQ_URL
+              value: "{{ .Values.rabbitmq.url }}"
+            - name: QUEUE_NAME
+              value: "{{ .Values.rabbitmq.queue }}"
+            - name: RATE_HZ
+              value: "{{ .Values.generator.rateHz }}"
+            - name: SAT_COUNT
+              value: "{{ .Values.generator.satCount }}"
+          ports:
+            - containerPort: 9100
+          readinessProbe:
+            httpGet: { path: /metrics, port: 9100 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /metrics, port: 9100 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: generator
+spec:
+  type: NodePort
+  selector:
+    app: generator
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+      nodePort: {{ .Values.generator.nodePort }}
+

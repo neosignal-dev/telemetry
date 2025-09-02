@@ -1,0 +1,15 @@
+# Example terraform.tfvars for Yandex.Cloud
+cloud_id   = ""
+folder_id  = ""
+zone       = "ru-central1-a"
+
+# Kubernetes and SRV settings
+sa_id         = ""
+k8s_version   = "1.29"
+srv_image_id  = ""
+ssh_user      = "ubuntu"
+ssh_public_key = ""
+
+# Auth (choose one)
+# yc_token = ""
+# sa_key_file = "/path/to/key.json"

@@ -1,0 +1,34 @@
+name: Deploy
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'k8s/helm/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.4'
+      - name: Setup helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.4'
+      - name: Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBECONFIG_CONTENT}" > ~/.kube/config
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_CONTENT }}
+      - name: Deploy telemetry chart
+        run: |
+          helm upgrade --install telemetry k8s/helm \
+            --set image.repositoryPrefix=ghcr.io/${{ github.repository_owner }}/telemetry- \
+            --set image.tag=${GITHUB_SHA::7} \
+            --namespace telemetry --create-namespace
+

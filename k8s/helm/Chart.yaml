@@ -1,0 +1,7 @@
+apiVersion: v2
+name: telemetry
+description: Telemetry application (generator, collector, processor)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+

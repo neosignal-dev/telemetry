@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: telemetry
+  namespace: telemetry
+spec:
+  interval: 1m
+  chart:
+    spec:
+      chart: ./k8s/helm
+      sourceRef:
+        kind: GitRepository
+        name: telemetry
+        namespace: flux-system
+  values:
+    image:
+      repositoryPrefix: "REGISTRY/telemetry-"
+      tag: "latest"
+

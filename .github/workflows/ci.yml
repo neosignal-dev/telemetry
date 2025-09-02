@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test deps
+        run: pip install pytest
+      - name: Unit tests
+        run: make test
+
+  docker:
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push images
+        run: |
+          set -e
+          SHA=${GITHUB_SHA::7}
+          for s in telemetry-generator telemetry-collector telemetry-processor; do
+            docker build -t ghcr.io/${{ github.repository_owner }}/$s:$SHA -f services/$s/Dockerfile services/$s
+            docker push ghcr.io/${{ github.repository_owner }}/$s:$SHA
+          done
+

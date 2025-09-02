@@ -1,0 +1,54 @@
+---
+- hosts: srv
+  become: true
+  vars:
+    repo_root: "/opt/telemetry-srv"
+  tasks:
+    - name: Install dependencies
+      apt:
+        update_cache: yes
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - docker.io
+          - docker-compose
+        state: present
+
+    - name: Enable and start docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create working directory
+      file:
+        path: "{{ repo_root }}"
+        state: directory
+
+    - name: Copy docker-compose stack
+      copy:
+        src: "../../srv/docker-compose.yml"
+        dest: "{{ repo_root }}/docker-compose.yml"
+
+    - name: Copy vmagent config
+      copy:
+        src: "../../srv/vmagent/prometheus.yml"
+        dest: "{{ repo_root }}/prometheus.yml"
+
+    - name: Copy vmalert rules
+      copy:
+        src: "../../srv/vmalert/rules.yml"
+        dest: "{{ repo_root }}/rules.yml"
+
+    - name: Copy promtail and loki configs
+      copy:
+        src: "../../srv/"
+        dest: "{{ repo_root }}/"
+
+    - name: Launch monitoring stack
+      shell: docker compose up -d
+      args:
+        chdir: "{{ repo_root }}"
