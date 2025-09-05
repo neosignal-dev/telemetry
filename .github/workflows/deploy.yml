@@ -1,34 +1,102 @@
-name: Deploy
+name: Deploy to Kubernetes
+
 on:
-  workflow_dispatch:
   push:
+    tags: ['v*.*.*']
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
     branches: [ main ]
-    paths:
-      - 'k8s/helm/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.0
+          
       - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.29.4'
-      - name: Setup helm
-        uses: azure/setup-helm@v4
-        with:
-          version: 'v3.14.4'
-      - name: Kubeconfig
+          version: 'latest'
+          
+      - name: Configure kubectl
         run: |
-          mkdir -p ~/.kube
-          echo "${KUBECONFIG_CONTENT}" > ~/.kube/config
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_CONTENT }}
-      - name: Deploy telemetry chart
+          echo "${{ secrets.KUBECONFIG_CONTENT }}" | base64 -d > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+          
+      - name: Update Helm values with new image tags
         run: |
-          helm upgrade --install telemetry k8s/helm \
-            --set image.repositoryPrefix=ghcr.io/${{ github.repository_owner }}/telemetry- \
-            --set image.tag=${GITHUB_SHA::7} \
-            --namespace telemetry --create-namespace
+          cd k8s/helm
+          # Update image tags in values.yaml
+          sed -i "s|tag: \"latest\"|tag: \"${{ github.sha }}\"|g" values.yaml
+          sed -i "s|ghcr.io/OWNER/telemetry-|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-|g" values.yaml
+          
+      - name: Deploy to Kubernetes
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          cd k8s/helm
+          
+          # Create namespace if it doesn't exist
+          kubectl create namespace telemetry --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Install/upgrade Helm release
+          helm upgrade --install telemetry . \
+            --namespace telemetry \
+            --wait \
+            --timeout=10m \
+            --set image.tag=${{ github.ref_name }}
+            
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod -l app=generator -n telemetry --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=collector -n telemetry --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=processor -n telemetry --timeout=300s
+          
+          # Check service status
+          kubectl get pods -n telemetry
+          kubectl get services -n telemetry
+          
+      - name: Run smoke tests
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          
+          # Get NodePort service IP
+          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+          
+          # Test collector endpoint
+          curl -f "http://$NODE_IP:30081/health" || echo "Collector health check failed"
+          
+          # Test metrics endpoints
+          curl -f "http://$NODE_IP:30082/metrics" || echo "Generator metrics failed"
+          curl -f "http://$NODE_IP:30080/metrics" || echo "Processor metrics failed"
+          
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "🚀 New version deployed: ${{ github.sha }}"
+            echo "🌐 Services available at:"
+            echo "   - Generator metrics: http://$NODE_IP:30082/metrics"
+            echo "   - Collector API: http://$NODE_IP:30081/ingest"
+            echo "   - Processor metrics: http://$NODE_IP:30080/metrics"
+          else
+            echo "❌ Deployment failed!"
+            exit 1
+          fi
 

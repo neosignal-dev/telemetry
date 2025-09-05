@@ -1,0 +1,69 @@
+---
+- name: Add Kubernetes apt repository key
+  apt_key:
+    url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+    state: present
+
+- name: Add Kubernetes apt repository
+  apt_repository:
+    repo: "deb https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+    state: present
+    filename: kubernetes
+
+- name: Install kubectl
+  apt:
+    name: kubectl
+    state: present
+    update_cache: yes
+
+- name: Download Helm
+  get_url:
+    url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    dest: /tmp/helm.tar.gz
+    mode: '0644'
+
+- name: Extract Helm
+  unarchive:
+    src: /tmp/helm.tar.gz
+    dest: /tmp
+    remote_src: yes
+
+- name: Install Helm
+  copy:
+    src: /tmp/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    mode: '0755'
+    remote_src: yes
+
+- name: Clean up Helm files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/helm.tar.gz
+    - /tmp/linux-amd64
+
+- name: Create .kube directory for telemetry user
+  file:
+    path: /opt/telemetry/.kube
+    state: directory
+    owner: telemetry
+    group: telemetry
+    mode: '0755'
+
+- name: Copy kubeconfig to telemetry user
+  copy:
+    content: "{{ kubeconfig_content }}"
+    dest: /opt/telemetry/.kube/config
+    owner: telemetry
+    group: telemetry
+    mode: '0600'
+  when: kubeconfig_content is defined
+
+- name: Set KUBECONFIG environment variable
+  lineinfile:
+    path: /opt/telemetry/.bashrc
+    line: 'export KUBECONFIG=/opt/telemetry/.kube/config'
+    create: yes
+    owner: telemetry
+    group: telemetry

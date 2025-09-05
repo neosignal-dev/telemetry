@@ -1,23 +1,33 @@
-{
+ {
   "id": null,
   "uid": "telemetry-overview",
   "title": "Telemetry – Satellites",
   "tags": ["telemetry", "satcom"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "panels": [
-    { "type": "row", "title": "Generator (per-satellite)", "gridPos": {"x":0,"y":0,"w":24,"h":1} },
-    {"type":"timeseries","title":"Generated rate by satellite (events/s)","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":0,"y":1,"w":24,"h":8},"targets":[{"expr":"sum by (sat_id) (rate(telemetry_generated_total{region=\"RU\"}[1m]))","legendFormat":"{{sat_id}}"}]},
-    {"type":"bargauge","title":"Top satellites by generated rate","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":0,"y":9,"w":12,"h":8},"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false}},"targets":[{"expr":"topk(10, sum by (sat_id) (rate(telemetry_generated_total{region=\"RU\"}[5m])))","legendFormat":"{{sat_id}}"}]},
-    {"type":"stat","title":"Configured rate / satellites","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":12,"y":9,"w":12,"h":8},"targets":[{"expr":"telemetry_generator_rate_hz","legendFormat":"rate (Hz)"},{"expr":"telemetry_generator_sat_count","legendFormat":"satellites"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false}}},
-    { "type": "row", "title": "Battery (per-satellite)", "gridPos": {"x":0,"y":17,"w":24,"h":1} },
-    {"type":"timeseries","title":"Battery p50/p90 by satellite","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":0,"y":18,"w":24,"h":8},"targets":[{"expr":"histogram_quantile(0.5, sum by (sat_id, le) (rate(telemetry_sat_battery_bucket[5m])))","legendFormat":"{{sat_id}} p50"},{"expr":"histogram_quantile(0.9, sum by (sat_id, le) (rate(telemetry_sat_battery_bucket[5m])))","legendFormat":"{{sat_id}} p90"}]},
-    {"type":"heatmap","title":"Battery distribution (bucket rate)","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":0,"y":26,"w":24,"h":10},"targets":[{"expr":"sum by (le) (rate(telemetry_sat_battery_bucket[5m]))"}],"options":{"legend":{"show":true}}},
-    { "type": "row", "title": "Processor (per-satellite)", "gridPos": {"x":0,"y":36,"w":24,"h":1} },
-    {"type":"timeseries","title":"Ingested to DB by satellite (events/s)","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":0,"y":37,"w":24,"h":8},"targets":[{"expr":"sum by (sat_id) (rate(telemetry_ingested_by_sat_total{region=\"RU\"}[1m]))","legendFormat":"{{sat_id}}"}]},
-    {"type":"bargauge","title":"Pipeline efficiency (ingested/generated) by satellite","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"x":0,"y":45,"w":24,"h":8},"targets":[{"expr":"sum by (sat_id) (rate(telemetry_ingested_by_sat_total{region=\"RU\"}[5m])) / sum by (sat_id) (rate(telemetry_generated_total{region=\"RU\"}[5m]))","legendFormat":"{{sat_id}}"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false}}}
+    { "type": "row", "title": "System Overview", "gridPos": {"x":0,"y":0,"w":24,"h":1} },
+    {"type":"stat","title":"Pod Status","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":1,"w":6,"h":4},"targets":[{"expr":"up{job=\"kubernetes-pods\",namespace=\"telemetry\"}","legendFormat":"{{pod}}"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"colorMode":"background","graphMode":"area"}},
+    {"type":"stat","title":"Node Status","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":6,"y":1,"w":6,"h":4},"targets":[{"expr":"up{job=\"kubernetes-nodes\"}","legendFormat":"{{instance}}"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"colorMode":"background","graphMode":"area"}},
+    {"type":"stat","title":"RPS Ingestion","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":12,"y":1,"w":6,"h":4},"targets":[{"expr":"rate(telemetry_collected_total[1m])","legendFormat":"RPS"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"colorMode":"value","graphMode":"area"}},
+    {"type":"stat","title":"P95 Latency","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":18,"y":1,"w":6,"h":4},"targets":[{"expr":"histogram_quantile(0.95, rate(telemetry_latency_seconds_bucket[5m]))","legendFormat":"P95"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false},"colorMode":"value","graphMode":"area","unit":"s"}},
+    
+    { "type": "row", "title": "Generator (per-satellite)", "gridPos": {"x":0,"y":5,"w":24,"h":1} },
+    {"type":"timeseries","title":"Generated rate by satellite (events/s)","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":6,"w":24,"h":8},"targets":[{"expr":"sum by (sat_id) (rate(telemetry_generated_total[1m]))","legendFormat":"{{sat_id}}"}]},
+    {"type":"bargauge","title":"Top satellites by generated rate","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":14,"w":12,"h":8},"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false}},"targets":[{"expr":"topk(10, sum by (sat_id) (rate(telemetry_generated_total[5m])))","legendFormat":"{{sat_id}}"}]},
+    {"type":"stat","title":"Configured rate / satellites","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":12,"y":14,"w":12,"h":8},"targets":[{"expr":"telemetry_generator_rate_hz","legendFormat":"rate (Hz)"},{"expr":"telemetry_generator_sat_count","legendFormat":"satellites"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false}}},
+    
+    { "type": "row", "title": "Battery (per-satellite)", "gridPos": {"x":0,"y":22,"w":24,"h":1} },
+    {"type":"timeseries","title":"Battery p50/p90 by satellite","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":23,"w":24,"h":8},"targets":[{"expr":"histogram_quantile(0.5, sum by (sat_id, le) (rate(telemetry_sat_battery_bucket[5m])))","legendFormat":"{{sat_id}} p50"},{"expr":"histogram_quantile(0.9, sum by (sat_id, le) (rate(telemetry_sat_battery_bucket[5m])))","legendFormat":"{{sat_id}} p90"}]},
+    {"type":"heatmap","title":"Battery distribution (bucket rate)","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":31,"w":24,"h":10},"targets":[{"expr":"sum by (le) (rate(telemetry_sat_battery_bucket[5m]))"}],"options":{"legend":{"show":true}}},
+    
+    { "type": "row", "title": "Processor & Database", "gridPos": {"x":0,"y":41,"w":24,"h":1} },
+    {"type":"timeseries","title":"Ingested to DB by satellite (events/s)","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":42,"w":12,"h":8},"targets":[{"expr":"sum by (sat_id) (rate(telemetry_ingested_by_sat_total[1m]))","legendFormat":"{{sat_id}}"}]},
+    {"type":"timeseries","title":"Database Errors","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":12,"y":42,"w":12,"h":8},"targets":[{"expr":"rate(telemetry_db_errors_total[1m])","legendFormat":"DB Errors/s"}]},
+    {"type":"bargauge","title":"Pipeline efficiency (ingested/generated) by satellite","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":0,"y":50,"w":12,"h":8},"targets":[{"expr":"sum by (sat_id) (rate(telemetry_ingested_by_sat_total[5m])) / sum by (sat_id) (rate(telemetry_generated_total[5m]))","legendFormat":"{{sat_id}}"}],"options":{"reduceOptions":{"calcs":["lastNotNull"],"values":false}}},
+    {"type":"timeseries","title":"Queue Depth","datasource":{"type":"prometheus","uid":"P4169E866C3094E38"},"gridPos":{"x":12,"y":50,"w":12,"h":8},"targets":[{"expr":"rabbitmq_queue_messages","legendFormat":"Queue Messages"}]}
   ]
 }
 

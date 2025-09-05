@@ -1,0 +1,95 @@
+---
+- name: Create monitoring directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: telemetry
+    group: telemetry
+    mode: '0755'
+  loop:
+    - /opt/telemetry/monitoring
+    - /opt/telemetry/monitoring/victoriametrics
+    - /opt/telemetry/monitoring/vmagent
+    - /opt/telemetry/monitoring/vmalert
+    - /opt/telemetry/monitoring/grafana
+    - /opt/telemetry/monitoring/alertmanager
+    - /opt/telemetry/monitoring/loki
+
+- name: Create VictoriaMetrics configuration
+  template:
+    src: victoriametrics.yml.j2
+    dest: /opt/telemetry/monitoring/victoriametrics/victoriametrics.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Create vmagent configuration
+  template:
+    src: vmagent.yml.j2
+    dest: /opt/telemetry/monitoring/vmagent/prometheus.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Create vmalert rules
+  template:
+    src: vmalert-rules.yml.j2
+    dest: /opt/telemetry/monitoring/vmalert/rules.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Create Grafana datasource configuration
+  template:
+    src: grafana-datasource.yml.j2
+    dest: /opt/telemetry/monitoring/grafana/datasource.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Create Grafana dashboards directory
+  file:
+    path: /opt/telemetry/monitoring/grafana/dashboards
+    state: directory
+    owner: telemetry
+    group: telemetry
+    mode: '0755'
+
+- name: Copy Grafana dashboard
+  copy:
+    src: "{{ item }}"
+    dest: /opt/telemetry/monitoring/grafana/dashboards/
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+  loop:
+    - "{{ playbook_dir }}/../monitoring/grafana/provisioning/dashboards/telemetry-overview.json"
+
+- name: Create Grafana dashboards configuration
+  template:
+    src: dashboards.yml.j2
+    dest: /opt/telemetry/monitoring/grafana/dashboards.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Create Alertmanager configuration
+  template:
+    src: alertmanager.yml.j2
+    dest: /opt/telemetry/monitoring/alertmanager/config.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Create docker-compose for monitoring stack
+  template:
+    src: docker-compose-monitoring.yml.j2
+    dest: /opt/telemetry/monitoring/docker-compose.yml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Start monitoring stack
+  shell: docker-compose up -d
+  args:
+    chdir: /opt/telemetry/monitoring

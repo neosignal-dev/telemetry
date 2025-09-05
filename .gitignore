@@ -1,77 +1,45 @@
-# OS / Editors
-.DS_Store
-__MACOSX/
-.idea/
-.vscode/
-*.swp
-*.swo
+# Terraform
+.terraform/
+terraform.tfstate*
+terraform.tfvars
+*.tfvars
+**/.DS_Store
+
+# Ansible
+ansible/secrets.yml
+ansible/.vault_pass
+ansible/inventory.yml
+
+# Kubernetes
+k8s/simple-*.yaml
+k8s/promtail-*.yaml
+k8s/vmagent-*.yaml
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
-venv/
+*.so
+.Python
 env/
+venv/
 ENV/
-.python-version
+env.bak/
+venv.bak/
 
-# Packaging
-build/
-dist/
-*.egg-info/
-.eggs/
-pip-wheel-metadata/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Testing
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.mypy_cache/
-.pyre/
-.cache/
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
-logs/
 *.log
 
-# Environment files
-.env
-.env.*
-!.env.example
-
-# Docker
-docker-compose.override.yml
-
-# Terraform
-**/.terraform/
-terraform.tfstate
-terraform.tfstate.*
-crash.log
-crash.*.log
-*.tfvars
-*.tfvars.json
-*.tfplan
-*.tfplan.json
-.terraformrc
-terraform.rc
-# keep example tfvars files
-!infrastructure/terraform/**/terraform.tfvars.example
-
-# Helm
-charts/
-# keep Chart.lock if present
-
-# Kubernetes
-kubeconfig
-kubeconfig.*
-
-# Ansible
-*.retry
-ansible/.cache/
-
-# Grafana/VictoriaMetrics named volumes (if created as local dirs by mistake)
-grafana-data/
-vm-data/
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: telemetry-team
+  description: Jenkins CI/CD server setup
+  company: telemetry
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - jenkins
+    - ci
+    - cd
+
+dependencies:
+  - role: common

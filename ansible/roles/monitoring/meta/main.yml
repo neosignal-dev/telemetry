@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: telemetry-team
+  description: Monitoring stack setup (VictoriaMetrics, Grafana, Alertmanager)
+  company: telemetry
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - monitoring
+    - victoriametrics
+    - grafana
+    - alertmanager
+
+dependencies:
+  - role: common

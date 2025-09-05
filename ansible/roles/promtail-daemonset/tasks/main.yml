@@ -1,0 +1,16 @@
+---
+- name: Create Promtail DaemonSet manifest
+  template:
+    src: promtail-daemonset.yaml.j2
+    dest: /opt/telemetry/promtail-daemonset.yaml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'
+
+- name: Apply Promtail DaemonSet
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'promtail-daemonset.yaml.j2') }}"
+  become_user: telemetry
+  environment:
+    KUBECONFIG: /opt/telemetry/.kube/config

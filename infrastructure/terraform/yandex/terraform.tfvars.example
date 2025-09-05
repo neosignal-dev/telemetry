@@ -1,15 +1,15 @@
 # Example terraform.tfvars for Yandex.Cloud
-cloud_id   = ""
-folder_id  = ""
+cloud_id   = "your-cloud-id"
+folder_id  = "your-folder-id"
 zone       = "ru-central1-a"
 
-# Kubernetes and SRV settings
-sa_id         = ""
-k8s_version   = "1.29"
-srv_image_id  = ""
-ssh_user      = "ubuntu"
-ssh_public_key = ""
+# Debian 12 image ID (default: fd8kdq6d0p8sij7h5qe3)
+debian_image_id = "fd8kdq6d0p8sij7h5qe3"
+
+# SSH settings
+ssh_user       = "debian"
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC... your-public-key"
 
 # Auth (choose one)
-# yc_token = ""
-# sa_key_file = "/path/to/key.json"
+# yc_token = "your-oauth-token"
+# sa_key_file = "/path/to/service-account-key.json"

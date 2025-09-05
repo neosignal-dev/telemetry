@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: telemetry-team
+  description: K3s master node setup
+  company: telemetry
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - kubernetes
+    - k3s
+    - master
+
+dependencies:
+  - role: common

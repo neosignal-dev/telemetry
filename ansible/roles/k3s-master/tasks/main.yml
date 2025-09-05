@@ -1,0 +1,82 @@
+---
+- name: Install K3s master
+  shell: |
+    curl -sfL https://get.k3s.io | sh -s - server \
+      --disable traefik \
+      --disable servicelb \
+      --cluster-cidr 10.42.0.0/16 \
+      --service-cidr 10.43.0.0/16 \
+      --flannel-backend vxlan \
+      --write-kubeconfig-mode 644
+  args:
+    creates: /usr/local/bin/k3s
+
+- name: Wait for K3s to be ready
+  wait_for:
+    port: 6443
+    host: "{{ ansible_default_ipv4.address }}"
+    delay: 10
+    timeout: 300
+
+- name: Get K3s token
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token
+
+- name: Set k3s_token fact
+  set_fact:
+    k3s_token: "{{ k3s_token.content | b64decode | trim }}"
+
+- name: Get K3s CA certificate
+  slurp:
+    src: /var/lib/rancher/k3s/server/tls/server-ca.crt
+  register: k3s_ca_cert_raw
+
+- name: Set k3s_ca_cert fact
+  set_fact:
+    k3s_ca_cert: "{{ k3s_ca_cert_raw.content | b64decode }}"
+
+- name: Get K3s client certificate
+  slurp:
+    src: /var/lib/rancher/k3s/server/tls/client-admin.crt
+  register: k3s_client_cert_raw
+
+- name: Set k3s_client_cert fact
+  set_fact:
+    k3s_client_cert: "{{ k3s_client_cert_raw.content | b64decode }}"
+
+- name: Get K3s client key
+  slurp:
+    src: /var/lib/rancher/k3s/server/tls/client-admin.key
+  register: k3s_client_key_raw
+
+- name: Set k3s_client_key fact
+  set_fact:
+    k3s_client_key: "{{ k3s_client_key_raw.content | b64decode }}"
+
+- name: Create kubeconfig for telemetry user
+  copy:
+    content: |
+      apiVersion: v1
+      clusters:
+      - cluster:
+          certificate-authority-data: {{ k3s_ca_cert }}
+          server: https://{{ ansible_default_ipv4.address }}:6443
+        name: default
+      contexts:
+      - context:
+          cluster: default
+          user: default
+        name: default
+      current-context: default
+      kind: Config
+      preferences: {}
+      users:
+      - name: default
+        user:
+          client-certificate-data: {{ k3s_client_cert }}
+          client-key-data: {{ k3s_client_key }}
+    dest: /opt/telemetry/kubeconfig
+    owner: telemetry
+    group: telemetry
+    mode: '0600'

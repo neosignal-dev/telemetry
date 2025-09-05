@@ -2,7 +2,7 @@
 - hosts: srv
   become: true
   vars:
-    repo_root: "/opt/telemetry-srv"
+    repo_root: "/opt/telemetry"
   tasks:
     - name: Install dependencies
       apt:

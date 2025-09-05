@@ -1,0 +1,128 @@
+---
+- name: Install Java 17
+  apt:
+    name: openjdk-17-jdk
+    state: present
+
+- name: Add Jenkins repository key
+  apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    state: present
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+    update_cache: yes
+
+- name: Start and enable Jenkins
+  systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Install Docker
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+    state: present
+
+- name: Start and enable Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add jenkins user to docker group
+  user:
+    name: jenkins
+    groups: docker
+    append: yes
+
+- name: Wait for Jenkins to start
+  wait_for:
+    port: 8080
+    host: localhost
+    delay: 30
+    timeout: 300
+
+- name: Get Jenkins initial admin password
+  slurp:
+    src: /var/lib/jenkins/secrets/initialAdminPassword
+  register: jenkins_password
+
+- name: Set jenkins_initial_password fact
+  set_fact:
+    jenkins_initial_password: "{{ jenkins_password.content | b64decode | trim }}"
+
+- name: Create Jenkins job directory
+  file:
+    path: /var/lib/jenkins/jobs/telemetry-pipeline
+    state: directory
+    owner: jenkins
+    group: jenkins
+    mode: '0755'
+
+- name: Create Jenkins pipeline job
+  copy:
+    content: |
+      <?xml version='1.1' encoding='UTF-8'?>
+      <flow-definition plugin="workflow-job@2.45">
+        <description>Telemetry application CI/CD pipeline</description>
+        <keepDependencies>false</keepDependencies>
+        <properties>
+          <hudson.plugins.discard__build.DiscardBuildProperty>
+            <strategy class="hudson.plugins.discard__build.DiscardOldBuildStrategy">
+              <daysToKeepStr>7</daysToKeepStr>
+              <numToKeepStr>10</numToKeepStr>
+              <artifactDaysToKeepStr>-1</artifactDaysToKeepStr>
+              <artifactNumToKeepStr>-1</artifactNumToKeepStr>
+            </strategy>
+          </hudson.plugins.discard__build.DiscardBuildProperty>
+          <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+            <triggers>
+              <hudson.triggers.SCMTrigger>
+                <spec>H/5 * * * *</spec>
+                <ignorePostCommitHooks>false</ignorePostCommitHooks>
+              </hudson.triggers.SCMTrigger>
+            </triggers>
+          </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+        </properties>
+        <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.92">
+          <scm class="hudson.plugins.git.GitSCM" plugin="git@4.11.3">
+            <configVersion>2</configVersion>
+            <userRemoteConfigs>
+              <hudson.plugins.git.UserRemoteConfig>
+                <url>{{ jenkins_git_repo_url }}</url>
+                <credentialsId>{{ jenkins_git_credentials_id }}</credentialsId>
+              </hudson.plugins.git.UserRemoteConfig>
+            </userRemoteConfigs>
+            <branches>
+              <hudson.plugins.git.BranchSpec>
+                <name>*/main</name>
+              </hudson.plugins.git.BranchSpec>
+            </branches>
+            <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+            <submoduleCfg class="list"/>
+            <extensions>
+              <hudson.plugins.git.extensions.impl.CleanBeforeCheckout/>
+            </extensions>
+          </scm>
+          <scriptPath>Jenkinsfile</scriptPath>
+          <lightweight>false</lightweight>
+        </definition>
+        <triggers/>
+        <disabled>false</disabled>
+      </flow-definition>
+    dest: /var/lib/jenkins/jobs/telemetry-pipeline/config.xml
+    owner: jenkins
+    group: jenkins
+    mode: '0644'
+  when: jenkins_git_repo_url is defined and jenkins_git_credentials_id is defined

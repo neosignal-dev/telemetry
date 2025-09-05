@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: telemetry-team
+  description: Promtail DaemonSet for log collection
+  company: telemetry
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - logging
+    - promtail
+    - kubernetes
+
+dependencies:
+  - role: common

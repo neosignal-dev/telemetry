@@ -1,0 +1,8 @@
+---
+- name: Create Loki configuration
+  template:
+    src: loki-config.yaml.j2
+    dest: /opt/telemetry/monitoring/loki/config.yaml
+    owner: telemetry
+    group: telemetry
+    mode: '0644'

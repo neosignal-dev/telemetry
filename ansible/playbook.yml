@@ -1,0 +1,46 @@
+---
+- name: Setup K3s master
+  hosts: k3s_masters
+  become: true
+  vars_files:
+    - secrets.yml
+  roles:
+    - common
+    - k3s-master
+  vars:
+    telemetry_ssh_public_key: "{{ telemetry_secrets.ssh_public_key }}"
+
+- name: Setup K3s worker
+  hosts: k3s_workers
+  become: true
+  vars_files:
+    - secrets.yml
+  roles:
+    - common
+    - k3s-worker
+  vars:
+    k3s_master_ip: "{{ hostvars[groups['k3s_masters'][0]]['private_ip'] }}"
+    k3s_token: "{{ hostvars[groups['k3s_masters'][0]]['k3s_token'] }}"
+    telemetry_ssh_public_key: "{{ telemetry_secrets.ssh_public_key }}"
+
+- name: Setup monitoring server
+  hosts: srv
+  become: true
+  vars_files:
+    - secrets.yml
+  roles:
+    - common
+    - helm-kubectl
+    - jenkins
+    - monitoring
+    - loki
+    - promtail-daemonset
+  vars:
+    k3s_master_ip: "{{ hostvars[groups['k3s_masters'][0]]['private_ip'] }}"
+    k3s_worker_private_ip: "{{ hostvars[groups['k3s_workers'][0]]['private_ip'] }}"
+    srv_private_ip: "{{ private_ip }}"
+    kubeconfig_content: "{{ hostvars[groups['k3s_masters'][0]]['k3s_ca_cert'] }}"
+    telemetry_ssh_public_key: "{{ telemetry_secrets.ssh_public_key }}"
+    grafana_admin_password: "{{ telemetry_secrets.grafana_admin_password }}"
+    telegram_bot_token: "{{ telemetry_secrets.telegram_bot_token }}"
+    telegram_chat_id: "{{ telemetry_secrets.telegram_chat_id }}"

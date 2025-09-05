@@ -1,0 +1,65 @@
+groups:
+  - name: telemetry.rules
+    rules:
+      - alert: ProcessorDown
+        expr: up{job="telemetry-services", instance=~".*:30080"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Telemetry processor is down"
+          description: "Telemetry processor has been down for more than 1 minute."
+
+      - alert: NoTelemetryData
+        expr: increase(telemetry_collected_total[5m]) == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No telemetry data received"
+          description: "No telemetry data has been received for 5 minutes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(telemetry_latency_seconds_bucket[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected"
+          description: "95th percentile latency is above 100ms for more than 2 minutes."
+
+      - alert: DatabaseErrors
+        expr: rate(telemetry_db_errors_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High database error rate"
+          description: "Database error rate is above 0.1 errors per second."
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on monitoring server"
+          description: "Disk space is below 10% on the monitoring server."
+
+      - alert: RabbitMQQueueDepth
+        expr: rabbitmq_queue_messages > 1000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RabbitMQ queue depth is high"
+          description: "RabbitMQ queue has more than 1000 messages."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status!~"2..|3.."}[1m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP error rate"
+          description: "Высокий процент ошибок HTTP"

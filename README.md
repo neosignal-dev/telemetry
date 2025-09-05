@@ -1,159 +1,113 @@
-# Telemetry — спутниковая телеметрия (Prod‑ready)
+# Satellite Telemetry System
 
-Проект моделирует сбор и обработку телеметрии от спутников (или IoT‑устройств):
-- генерация событий (latency, bandwidth, battery, packet loss и т.д.),
-- приём HTTP и постановка в очередь RabbitMQ,
-- обработка и запись в Postgres,
-- метрики Prometheus и дашборды Grafana,
-- IaC (Terraform), автоматизация (Ansible), деплой в Kubernetes (Helm), CI/CD (GitHub Actions).
+Полнофункциональная система телеметрии спутников с полным циклом CI/CD, мониторингом и логированием.
 
----
+## Архитектура
 
-## Структура репозитория
-- `services/` — исходники микросервисов (generator, collector, processor)
-- `monitoring/` — локальный Prometheus и Grafana (provisioning)
-- `srv/` — стек мониторинга/логирования и Alertmanager для отдельного сервера
-- `k8s/helm/` — единый Helm‑чарт приложения
-- `gitops/apps/` — манифесты FluxCD (GitRepository, HelmRelease, Kustomization)
-- `infrastructure/terraform/yandex/` — Terraform (Yandex.Cloud)
-- `ansible/` — плейбуки для `srv` (provisioning)
-- `.github/workflows/` — CI/CD пайплайны GitHub Actions
-- `docker-compose.dev.yml` — локальный запуск
-- `tests/` — unit и smoke тесты
-- `Makefile` — цели для тестов
+- **Kubernetes**: K3s кластер (1 master + 1 worker)
+- **Приложение**: 3 микросервиса (generator, collector, processor) + PostgreSQL + RabbitMQ
+- **Мониторинг**: VictoriaMetrics + Grafana + Loki + Alertmanager
+- **CI/CD**: GitHub Actions с автоматическим деплоем по Git тегам
+- **Инфраструктура**: Yandex Cloud (Terraform + Ansible)
 
----
+## Быстрый старт
 
-## Локальный запуск (Docker Compose)
-Требования: Docker + Docker Compose, macOS (Intel/ARM) или Linux.
+### 1. Развертывание инфраструктуры
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build
-```
+# Настройка Yandex Cloud
+export YC_TOKEN="your_oauth_token"
+export YC_CLOUD_ID="your_cloud_id"
+export YC_FOLDER_ID="your_folder_id"
 
-URL и доступы:
-- RabbitMQ UI: http://localhost:15672 (user: telemetry, pass: telemetry)
-- Postgres: localhost:5432 (db/user: telemetry, pass: example)
-- Collector (FastAPI): http://localhost:8080/docs
-- Processor (Prometheus): http://localhost:8000/metrics
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
-
-Grafana: папка «Telemetry» → дашборд «Telemetry – Satellites».
-
-Метрики:
-- generator: `/metrics` на :9100 (`telemetry_generated_total`, `telemetry_generator_rate_hz`, `telemetry_generator_sat_count`, гистограммы домена)
-- collector: `/metrics` (FastAPI Instrumentator) + `telemetry_collected_total{sat_id,region}`
-- processor: `/metrics` на :8000 (`telemetry_ingested_total`, `telemetry_ingested_by_sat_total{sat_id,region}`, `telemetry_processing_latency_seconds`, ошибки БД)
-
-Тесты:
-```bash
-make test           # unit
-make test-smoke     # smoke (нужен поднятый compose‑стек)
-```
-
----
-
-## Облачная инфраструктура (Yandex.Cloud, Terraform)
-Код Terraform: `infrastructure/terraform/yandex` — создаёт VPC, управляемый Kubernetes‑кластер (1 нода) и ВМ `srv` для мониторинга/CI.
-
-Пример запуска:
-```bash
+# Развертывание инфраструктуры
 cd infrastructure/terraform/yandex
-export TF_VAR_yc_token=... TF_VAR_cloud_id=... TF_VAR_folder_id=... \
-       TF_VAR_sa_id=... TF_VAR_srv_image_id=... \
-       TF_VAR_ssh_public_key="$(cat ~/.ssh/id_rsa.pub)"
-terraform init && terraform apply
+terraform init
+terraform plan
+terraform apply
 ```
 
-Аутентификация в Yandex.Cloud:
-- Через OAuth токен: экспортируйте `TF_VAR_yc_token`.
-- Через ключ сервисного аккаунта: укажите путь к `sa_key_file` в `terraform.tfvars` или переменной окружения.
-
-Kubeconfig кластера:
-- После `terraform apply` получите эндпоинт из outputs.
-- Настройте `kubectl` через `yc managed-kubernetes cluster get-credentials ...` или вручную сформируйте kubeconfig.
-
-Выходные данные содержат: `srv_public_ip`, параметры кластера Kubernetes.
-
----
-
-## Автоматизация srv (Ansible)
-Плейбук: `ansible/srv/playbook.yml` — устанавливает Docker/Compose, разворачивает Grafana, VictoriaMetrics, vmagent, vmalert, Loki, Promtail, Alertmanager.
+### 2. Настройка серверов
 
 ```bash
-ansible-playbook -i "<srv_ip>," ansible/srv/playbook.yml --user ubuntu --private-key ~/.ssh/id_rsa
+# Создание inventory файла
+cp ansible/inventory.example.yml ansible/inventory.yml
+# Отредактируйте inventory.yml с IP адресами ваших серверов
+
+# Создание файла секретов
+cp ansible/secrets.example.yml ansible/secrets.yml
+# Отредактируйте secrets.yml с вашими секретами
+
+# Развертывание конфигурации
+cd ansible
+ansible-playbook -i inventory.yml playbook.yml
 ```
 
-Дополнительно можно передать TELEGRAM токены для Alertmanager через переменные окружения контейнера (см. `srv/alertmanager/config.yml`).
-
----
-
-## Деплой в Kubernetes (Helm)
-Единый чарт: `k8s/helm` (generator, collector, processor). Ноды экспонируются через NodePort:
-- processor: 30080, collector: 30081, generator: 30082
+### 3. Деплой приложения
 
 ```bash
-helm upgrade --install telemetry k8s/helm \
-  --set image.repositoryPrefix=ghcr.io/<OWNER>/telemetry- \
-  --set image.tag=<COMMIT_SHA> \
-  --namespace telemetry --create-namespace
+# Создание Git тега для автоматического деплоя
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-Зависимости кластера (K8s):
-- RabbitMQ и Postgres НЕ провиженятся GitOps‑манифестами в текущей конфигурации. Для продакшна используйте управляемые сервисы облака, Helm‑чарты инфраструктуры или внешние ресурсы. Локально их роль выполняют контейнеры Docker Compose.
+## Доступ к сервисам
 
-Для GitOps (FluxCD):
-- `gitops/apps/repo.yaml` — GitRepository (укажите свой `url`),
-- `gitops/apps/telemetry-helmrelease.yaml` — HelmRelease,
-- `gitops/apps/telemetry-kustomization.yaml` — применяет каталог `gitops/apps`.
-Примечание: можно выбрать один из путей доставки — FluxCD (GitOps) или GitHub Actions (deploy workflow).
+- **Приложение**: http://WORKER_IP:30081
+- **Grafana**: http://SRV_IP:3000
+- **VictoriaMetrics**: http://SRV_IP:8428
+- **Loki**: http://SRV_IP:3100
+- **Alertmanager**: http://SRV_IP:9093
 
----
+## Структура проекта
 
-## CI/CD (GitHub Actions)
-Workflows в `.github/workflows/`:
-- `ci.yml`: unit‑тесты, сборка и пуш образов в GHCR с тегом `shortSHA`.
-- `deploy.yml`: деплой Helm‑чарта. Требуется секрет `KUBECONFIG_CONTENT` (содержимое kubeconfig), а также стандартный `GITHUB_TOKEN` для GHCR.
-
-Теги образов: `ghcr.io/<OWNER>/telemetry-<service>:<shortSHA>`.
-
----
-
-## Мониторинг и алертинг
-- Локально: `monitoring/prometheus/prometheus.yml` (scrape локальных сервисов), Grafana авто‑провиженит datasource и дашборды из `monitoring/grafana/provisioning`.
-- На `srv`: стек в `srv/docker-compose.yml` (Grafana, VictoriaMetrics, vmagent, vmalert, Loki, Promtail, Alertmanager).
-- Alertmanager → Telegram: задайте `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` (см. `srv/alertmanager/config.yml`).
-- Пример правил: `srv/vmalert/rules.yml` (алерт на падение processor).
-
-Логин в Grafana: по умолчанию `admin/admin` (если не переопределён переменными окружения).
-
-Для K8s‑кластерa на `srv` укажите NodePort‑таргеты в `srv/vmagent/prometheus.yml` (замените `<NODE_IP>` на IP ноды):
-- processor: `<NODE_IP>:30080`, collector: `<NODE_IP>:30081`
-
----
-
-## Пошаговые инструкции
-Для разработчика:
-1) `docker compose -f docker-compose.dev.yml up --build`
-2) Открыть Prometheus/Grafana, проверить метрики и дашборд
-3) Запустить `make test`/`make test-smoke`
-
-Для DevOps:
-1) `terraform apply` в `infrastructure/terraform/yandex` (получить `srv_public_ip` и доступ к K8s)
-2) `ansible-playbook` на `srv` для мониторинга/логирования
-3) Настроить FluxCD (см. `gitops/apps/*.yaml`), указать репозиторий и реестр
-4) Настроить GitHub Secrets: `KUBECONFIG_CONTENT` (deploy), (опционально) registry‑логин
-5) Push в `main` → CI соберёт образы и задеплоит Helm‑чарт
-
-Тесты:
-```bash
-make test           # unit
-make test-smoke     # smoke (нужен поднятый compose‑стек)
+```
+├── infrastructure/terraform/yandex/  # Terraform конфигурации
+├── ansible/                          # Ansible плейбуки и роли
+├── k8s/helm/                         # Helm чарт приложения
+├── services/                         # Исходный код микросервисов
+├── monitoring/                       # Конфигурации мониторинга
+├── .github/workflows/                # CI/CD пайплайны
+└── tests/                           # Тесты
 ```
 
----
+## Мониторинг
 
-## Замечания по безопасности
-- Секреты не коммитятся — используйте GitHub Secrets, Vault или Kubernetes Secrets.
-- Переменные окружения для production выносите в Secret/External secrets.
+### Метрики
+- Время отклика приложения
+- Количество запросов (RPS)
+- Ошибки базы данных
+- Глубина очереди RabbitMQ
+- Статус подов и нод
+
+### Логирование
+- Автоматический сбор логов всех подов
+- Централизованное хранение в Loki
+- Поиск и анализ через Grafana
+
+### Алертинг
+- Уведомления в Telegram
+- Алерты на недоступность сервисов
+- Мониторинг ресурсов сервера
+
+## CI/CD
+
+Автоматический пайплайн при создании Git тега:
+
+1. **Build**: Сборка Docker образов
+2. **Push**: Отправка в GitHub Container Registry
+3. **Deploy**: Развертывание в Kubernetes через Helm
+4. **Test**: Smoke тесты
+
+
+## Требования
+
+- Terraform >= 1.0
+- Ansible >= 2.9
+- kubectl >= 1.20
+- Helm >= 3.0
+- Yandex Cloud CLI
+
+## Лицензия
+
+MIT

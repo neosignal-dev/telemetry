@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: collector
+  namespace: {{ .Values.namespace }}
   labels:
     app: collector
 spec:
@@ -13,7 +14,15 @@ spec:
     metadata:
       labels:
         app: collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: collector
           image: "{{ .Values.image.repositoryPrefix }}collector:{{ .Values.image.tag }}"
@@ -21,22 +30,45 @@ spec:
             - containerPort: 8080
           env:
             - name: RABBITMQ_URL
-              value: "{{ .Values.rabbitmq.url }}"
+              value: "amqp://{{ .Values.rabbitmq.user }}:$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telemetry-secrets
+                  key: rabbitmq-password
             - name: QUEUE_NAME
               value: "{{ .Values.rabbitmq.queue }}"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
           readinessProbe:
-            httpGet: { path: /metrics, port: 8080 }
+            httpGet:
+              path: /health
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
           livenessProbe:
-            httpGet: { path: /metrics, port: 8080 }
+            httpGet:
+              path: /health
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: collector
+  namespace: {{ .Values.namespace }}
 spec:
   type: NodePort
   selector:
@@ -51,6 +83,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: processor
+  namespace: {{ .Values.namespace }}
   labels:
     app: processor
 spec:
@@ -62,7 +95,15 @@ spec:
     metadata:
       labels:
         app: processor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: processor
           image: "{{ .Values.image.repositoryPrefix }}processor:{{ .Values.image.tag }}"
@@ -70,24 +111,52 @@ spec:
             - containerPort: 8000
           env:
             - name: RABBITMQ_URL
-              value: "{{ .Values.rabbitmq.url }}"
+              value: "amqp://{{ .Values.rabbitmq.user }}:$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telemetry-secrets
+                  key: rabbitmq-password
             - name: QUEUE_NAME
               value: "{{ .Values.rabbitmq.queue }}"
             - name: PG_DSN
-              value: "{{ .Values.postgres.dsn }}"
+              value: "postgresql://{{ .Values.postgres.user }}:$(POSTGRES_PASSWORD)@postgresql:5432/{{ .Values.postgres.database }}"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telemetry-secrets
+                  key: postgres-password
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
           readinessProbe:
-            httpGet: { path: /metrics, port: 8000 }
+            httpGet:
+              path: /health
+              port: 8000
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
           livenessProbe:
-            httpGet: { path: /metrics, port: 8000 }
+            httpGet:
+              path: /health
+              port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: processor
+  namespace: {{ .Values.namespace }}
 spec:
   type: NodePort
   selector:
@@ -102,6 +171,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: generator
+  namespace: {{ .Values.namespace }}
   labels:
     app: generator
 spec:
@@ -113,13 +183,26 @@ spec:
     metadata:
       labels:
         app: generator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: generator
           image: "{{ .Values.image.repositoryPrefix }}generator:{{ .Values.image.tag }}"
           env:
             - name: RABBITMQ_URL
-              value: "{{ .Values.rabbitmq.url }}"
+              value: "amqp://{{ .Values.rabbitmq.user }}:$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: telemetry-secrets
+                  key: rabbitmq-password
             - name: QUEUE_NAME
               value: "{{ .Values.rabbitmq.queue }}"
             - name: RATE_HZ
@@ -128,19 +211,37 @@ spec:
               value: "{{ .Values.generator.satCount }}"
           ports:
             - containerPort: 9100
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
           readinessProbe:
-            httpGet: { path: /metrics, port: 9100 }
+            httpGet:
+              path: /health
+              port: 9100
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
           livenessProbe:
-            httpGet: { path: /metrics, port: 9100 }
+            httpGet:
+              path: /health
+              port: 9100
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: generator
+  namespace: {{ .Values.namespace }}
 spec:
   type: NodePort
   selector:

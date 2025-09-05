@@ -1,0 +1,53 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install basic packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - htop
+      - vim
+      - unzip
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - apt-transport-https
+    state: present
+
+- name: Create telemetry user
+  user:
+    name: telemetry
+    system: yes
+    shell: /bin/bash
+    home: /opt/telemetry
+    create_home: yes
+
+- name: Add telemetry user to docker group
+  user:
+    name: telemetry
+    groups: docker
+    append: yes
+  when: "'docker' in group_names"
+
+- name: Set up SSH for telemetry user
+  authorized_key:
+    user: telemetry
+    key: "{{ telemetry_ssh_public_key | default('') }}"
+  when: telemetry_ssh_public_key is defined and telemetry_ssh_public_key != ""
+
+- name: Create telemetry directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: telemetry
+    group: telemetry
+    mode: '0755'
+  loop:
+    - /opt/telemetry
+    - /opt/telemetry/logs
+    - /opt/telemetry/config

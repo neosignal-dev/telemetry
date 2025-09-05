@@ -1,0 +1,44 @@
+all:
+  children:
+    k3s_masters:
+      hosts:
+        telemetry-k3s-master:
+          ansible_host: <MASTER_IP>
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+          private_ip: 10.128.0.4
+          public_ip: <MASTER_PUBLIC_IP>
+
+    k3s_workers:
+      hosts:
+        telemetry-k3s-worker:
+          ansible_host: <WORKER_IP>
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+          private_ip: 10.128.0.7
+          public_ip: <WORKER_PUBLIC_IP>
+
+    srv:
+      hosts:
+        telemetry-srv:
+          ansible_host: <SRV_IP>
+          ansible_user: debian
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa
+          private_ip: 10.128.0.3
+          public_ip: <SRV_PUBLIC_IP>
+
+  vars:
+    # K3s cluster configuration
+    k3s_master_ip: 10.128.0.4
+    k3s_worker_ip: 10.128.0.7
+    srv_ip: 10.128.0.3
+    
+    # Service URLs
+    grafana_url: "http://<SRV_IP>:3000"
+    jenkins_url: "http://<SRV_IP>:8080"
+    victoriametrics_url: "http://<SRV_IP>:8428"
+    
+    # Application URLs
+    app_collector_url: "http://<WORKER_IP>:30081"
+    app_processor_url: "http://<WORKER_IP>:30080"
+    app_generator_url: "http://<WORKER_IP>:30082"

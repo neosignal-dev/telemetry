@@ -1,0 +1,5 @@
+---
+k3s_worker_private_ip: ""
+telegram_bot_token: ""
+telegram_chat_id: ""
+grafana_admin_password: "admin"

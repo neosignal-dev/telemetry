@@ -2,97 +2,104 @@
 alwaysApply: true
 ---
 
-# Cursor Rules for Telemetry DevOps Project
+This project simulates a satellite telemetry system with the following components:
+	•	Generator: produces synthetic telemetry data (latency, bandwidth, battery, packet loss, etc.).
+	•	Collector: exposes API endpoints for ingestion of telemetry events and pushes them to RabbitMQ.
+	•	Processor: consumes telemetry from RabbitMQ, stores it into PostgreSQL, and exposes Prometheus metrics.
+	•	Database: PostgreSQL as a StatefulSet with PVC in Kubernetes.
+	•	Monitoring stack (on srv): VictoriaMetrics + vmagent + vmalert + Grafana + Loki + Promtail + Alertmanager with Telegram alerts.
+	•	CI/CD: Jenkins pipelines for build, test, push, and deploy with Helm into Kubernetes.
+	•	Infrastructure: Terraform + Ansible for Yandex.Cloud (self-managed k3s cluster + srv node).
 
-## Project Overview
-This project simulates a satellite internet telemetry system with the following components:
-- **Generator**: produces synthetic satellite telemetry data (latency, bandwidth, battery, packet loss, etc.).
-- **Collector**: exposes API endpoints for external ingestion of telemetry events and pushes them to RabbitMQ.
-- **Processor**: consumes telemetry from RabbitMQ, stores it into PostgreSQL, and exposes Prometheus metrics.
-- **Monitoring stack**: Prometheus + Grafana + Alertmanager with pre-provisioned dashboards and Telegram alerts.
-- **CI/CD**: GitHub Actions pipelines for build, test, push, and deploy with Helm into Kubernetes.
-- **Infrastructure**: Terraform + Ansible for Yandex.Cloud (Kubernetes cluster + srv node for observability).
+The system is designed for a DevOps diploma project, demonstrating IaC, CI/CD, observability, and GitOps practices.
 
-The system is designed for DevOps diploma purposes, showcasing IaC, CI/CD, observability, and GitOps best practices.
+⸻
 
----
+Coding Standards
+	1.	Language: Python 3.11+ for microservices.
+	2.	Style: PEP8 + type hints.
+	3.	Services: Every service must have Dockerfile and requirements.txt.
+	4.	Metrics: Each service must expose Prometheus metrics under /metrics.
+	5.	Logs: Use structured JSON logging (logging module, no prints).
+	6.	Configuration: All configs via environment variables. Never hardcode secrets.
 
-## Coding Standards
-1. **Language**: Python 3.11+ for microservices.  
-2. **Style**: PEP8 + type hints.  
-3. **Services**: All services must have `Dockerfile` and `requirements.txt`.  
-4. **Metrics**: Each service must expose Prometheus metrics under `/metrics`.  
-5. **Logs**: Use structured JSON logging (logging module, no prints).  
-6. **Configuration**: All configs via environment variables. Never hardcode secrets.  
+⸻
 
----
+Repository Structure
+	•	services/ — microservices code (generator, collector, processor).
+	•	monitoring/ — Grafana dashboards, Alertmanager, VM stack configs.
+	•	infrastructure/terraform/ — Yandex Cloud IaC.
+	•	ansible/ — provisioning for srv, k3s master, k3s worker.
+	•	k8s/helm/ — Helm chart for telemetry app (with Postgres).
+	•	ci/ — Jenkins pipelines.
+	•	README.md — must always reflect the current structure and use actual Yandex Cloud CLI docs (https://yandex.cloud/en/docs/cli/cli-ref/).
 
-## Repository Structure
-Cursor may **reorganize the project structure** for best practices:
-- Remove duplicates, empty, or unused directories.
-- Move files if necessary for cleaner hierarchy.
-- Update paths in configs so everything keeps working.
-- Maintain separation of concerns:
-  - `services/` — microservices code (generator, collector, processor).
-  - `monitoring/` — Prometheus, Grafana, Alertmanager, dashboards.
-  - `infrastructure/terraform/` — Yandex Cloud IaC.
-  - `ansible/` — provisioning for `srv` node.
-  - `k8s/helm/` — Helm chart for telemetry app.
-  - `.github/workflows/` — CI/CD pipelines.
-  - `README.md` — must always reflect the current structure.
+⸻
 
----
+Rules for Cursor AI
+	1.	Secrets: never commit secrets. Use placeholders, .env.example, Kubernetes Secrets, or Jenkins Credentials.
+	2.	Kubernetes:
+	•	Use k3s (1 master, 1 worker).
+	•	Deploy app with Helm in namespace telemetry.
+	•	Expose services via NodePort only (no Ingress).
+	3.	Terraform: manage Yandex Cloud infra only in infrastructure/terraform/. Three VMs:
+	•	master (2 vCPU, 4GB RAM, 40GB SSD),
+	•	worker (2 vCPU, 4GB RAM, 60GB SSD),
+	•	srv (4 vCPU, 8GB RAM, 120GB SSD).
+All VMs on Debian 12.
+	4.	Ansible:
+	•	Provision srv with Jenkins, Grafana, VictoriaMetrics, Loki, Alertmanager.
+	•	Install Promtail as DaemonSet in the cluster.
+	•	Automate k3s master/worker setup, Helm, kubectl.
+	5.	CI/CD Pipelines:
+	•	Use Jenkins as CI/CD.
+	•	Trigger builds on Git tags (vX.Y.Z).
+	•	Tag Docker images exactly as git tags.
+	•	Deploy with Helm using that tag.
+	6.	Observability:
+	•	Use existing Grafana dashboards. Do not create new dashboards, only extend current ones (latency, RPS, DB errors, RabbitMQ queue).
+	•	Alerts must go to Telegram.
+	•	vmagent must use Kubernetes service discovery (no hardcoded IPs).
+	7.	Dockerfiles:
+	•	Multi-stage builds.
+	•	Non-root user.
+	•	Pin versions.
 
-## Rules for Cursor AI
-1. **Secrets**: never commit secrets. Use placeholders, `.env.example`, or Kubernetes Secrets.  
-2. **Kubernetes**: prefer Helm charts for app deployment.  
-3. **GitOps**: structure must allow GitOps tools (FluxCD/ArgoCD) if needed.  
-4. **Terraform**: manage Yandex Cloud infra only in `infrastructure/terraform/`.  
-5. **Ansible**: provision `srv` node with monitoring/CI/CD stack.  
-6. **Dockerfiles**:  
-   - Multi-stage builds.  
-   - Non-root user.  
-   - Pin Python and dependency versions.  
-7. **CI/CD Pipelines**:  
-   - Use GitHub Actions (primary).  
-   - Jobs: lint, build, test, push images, deploy Helm.  
-8. **Observability**:  
-   - All services must expose metrics.  
-   - Grafana dashboards as JSON under `monitoring/grafana/provisioning/dashboards/`.  
-   - Dashboards and datasources auto-provisioned.  
-   - Alertmanager integrated with Telegram.  
+⸻
 
----
+Naming Conventions
+	•	Kubernetes namespace: telemetry
+	•	Docker images: telemetry-<service>
+	•	RabbitMQ queue: telemetry.raw
+	•	Metrics prefix: telemetry_
+	•	Terraform resources: telemetry_<resource>
 
-## Naming Conventions
-- Kubernetes namespace: `telemetry`  
-- Docker images: `telemetry-<service>`  
-- RabbitMQ queue: `telemetry.raw`  
-- Metrics prefix: `telemetry_`  
-- Terraform resources: `telemetry_<resource>`  
+⸻
 
----
+Example Tasks for Cursor
+	1.	Add health endpoint to telemetry-collector and update Helm probes.
+	2.	Add PVC and StatefulSet for Postgres in Helm chart.
+	3.	Configure Jenkins pipeline for git-tag builds and Helm deploy.
+	4.	Add Promtail DaemonSet to collect pod logs into Loki on srv.
 
-## Example Tasks for Cursor
-1. Add new metric to telemetry-processor: update Prometheus exposition and Grafana dashboard.  
-2. Change RabbitMQ queue name: update generator, collector, processor, docker-compose, and Helm chart.  
-3. Add alerting rule: update `monitoring/prometheus/alerts/*.yml` and Alertmanager config.  
-4. Update Terraform module: keep all Yandex Cloud infra code in `infrastructure/terraform/`.  
+⸻
 
----
+Forbidden Actions
+	•	Do not commit .env files or raw secrets.
+	•	Do not add extra services beyond project scope (no new message brokers, no new dashboards unless extending existing).
+	•	Do not use outdated Yandex CLI flags (always follow official docs).
+	•	Do not leave excessive comments in code.
 
-## Forbidden Actions
-- Do not commit `.env` files or raw secrets.  
-- Do not break service APIs unless explicitly asked.  
-- Do not remove monitoring/alerting stack.  
+⸻
 
----
+Goal
 
-## Goal
-The repository should:  
-- Run locally with `docker compose -f docker-compose.dev.yml up`.  
-- Deploy to Kubernetes via Helm + GitHub Actions.  
-- Provision Yandex.Cloud infra with Terraform + Ansible.  
-- Provide monitoring and dashboards out-of-the-box.  
-- Send alerts to Telegram via Alertmanager.  
-- Be clean, reproducible, extensible, and well-documented.  
+The repository must:
+	•	Deploy infra with terraform apply.
+	•	Provision servers with ansible-playbook.
+	•	Build and push Docker images on git tags with Jenkins.
+	•	Deploy app into k3s via Helm, accessible at http://<worker-public-ip>:30081.
+	•	Provide monitoring and logs out-of-the-box (Grafana, Loki, VM, Alertmanager).
+	•	Send alerts to Telegram.
+	•	Be clean, reproducible, minimal, and well-documented.
+ 

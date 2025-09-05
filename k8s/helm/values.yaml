@@ -1,5 +1,7 @@
+namespace: telemetry
+
 image:
-  repositoryPrefix: "ghcr.io/OWNER/telemetry-"
+  repositoryPrefix: "ghcr.io/your-org/telemetry-"
   tag: "latest"
 
 generator:
@@ -14,9 +16,14 @@ processor:
   nodePort: 30080
 
 rabbitmq:
-  url: "amqp://telemetry:telemetry@rabbitmq:5672/"
+  user: telemetry
+  password: ""
   queue: "telemetry.raw"
 
 postgres:
-  dsn: "postgresql://telemetry:example@postgres:5432/telemetry"
+  user: telemetry
+  password: ""
+  database: telemetry
+  storage:
+    size: 10Gi
 
